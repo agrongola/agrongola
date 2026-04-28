@@ -222,6 +222,8 @@ export default function Home() {
   const [savedPlans, setSavedPlans] = useState<CropPlan[]>([]);
   
   const [showAddCrop, setShowAddCrop] = useState(false);
+  const [editingCrop, setEditingCrop] = useState<Crop | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [newCrop, setNewCrop] = useState({ name: '', plantedAt: '', location: '' });
   const [editingAlertId, setEditingAlertId] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData>({ temp: null, humidity: null, rainProb: null, rainTime: null });
@@ -765,47 +767,107 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
 
   const handleAddCrop = () => {
     if (newCrop.name && newCrop.location && newCrop.plantedAt) {
-      const planId = generateId();
-      const planData = { 
-        ...newCrop, 
-        id: planId,
-        soilAlerts: { moisture: false, moistureThreshold: 30, nutrients: false }
-      };
-      setCrops([...crops, planData]);
-      
-      // Sync to Supabase
-      supabase.from('crops').insert({
-        id: planId,
-        user_id: USER_ID,
-        name: newCrop.name,
-        planted_at: newCrop.plantedAt,
-        location: newCrop.location,
-        moisture_alert: false,
-        moisture_threshold: 30,
-        nutrients_alert: false
-      }).then();
+      if (editingCrop) {
+        // Update existing crop
+        const updatedCrops = crops.map(c => c.id === editingCrop.id ? { ...editingCrop, ...newCrop } : c);
+        setCrops(updatedCrops);
+
+        // Sync to Supabase
+        supabase.from('crops').update({
+          name: newCrop.name,
+          planted_at: newCrop.plantedAt,
+          location: newCrop.location
+        }).eq('id', editingCrop.id).then();
+
+        setEditingCrop(null);
+      } else {
+        // Create new crop
+        const planId = generateId();
+        const planData = { 
+          ...newCrop, 
+          id: planId,
+          soilAlerts: { moisture: false, moistureThreshold: 30, nutrients: false }
+        };
+        setCrops([...crops, planData]);
+        
+        // Sync to Supabase
+        supabase.from('crops').insert({
+          id: planId,
+          user_id: USER_ID,
+          name: newCrop.name,
+          planted_at: newCrop.plantedAt,
+          location: newCrop.location,
+          moisture_alert: false,
+          moisture_threshold: 30,
+          nutrients_alert: false
+        }).then();
+      }
 
       setNewCrop({ name: '', plantedAt: '', location: '' });
       setShowAddCrop(false);
     }
   };
 
+  const handleDeleteCrop = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta plantação?')) {
+      const updatedCrops = crops.filter(c => c.id !== id);
+      setCrops(updatedCrops);
+      
+      // Sync to Supabase
+      supabase.from('crops').delete().eq('id', id).then();
+    }
+  };
+
+  const handleDeletePlan = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este planejamento de safra?')) {
+      const updatedPlans = savedPlans.filter(p => p.id !== id);
+      setSavedPlans(updatedPlans);
+      
+      // Sync to Supabase
+      supabase.from('crop_plans').delete().eq('id', id).then();
+      
+      if (selectedPlanDetail?.id === id) {
+        setSelectedPlanDetail(null);
+      }
+    }
+  };
+
   return (
     <div className="w-full h-screen bg-[#0a2e10] overflow-hidden flex font-sans relative text-white">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Global Background Elements */}
       <div 
         className="absolute inset-0 opacity-40 pointer-events-none" 
         style={{ background: 'radial-gradient(circle at 20% 20%, #2d5a27 0%, transparent 50%), radial-gradient(circle at 80% 80%, #1e3a1a 0%, transparent 60%), radial-gradient(circle at 50% 50%, #4a7c44 0%, transparent 70%)' }}>
       </div>
 
       {/* Left Sidebar - Culturas */}
-      <div className="hidden lg:flex w-72 h-full bg-white/10 backdrop-blur-xl border-r border-white/20 p-6 flex-col z-10 shrink-0 overflow-y-auto">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-[#76c893] rounded-xl flex items-center justify-center shadow-lg">
-            <div className="w-6 h-6 border-2 border-white rounded-sm rotate-45 flex items-center justify-center overflow-hidden">
-              <div className="w-4 h-4 bg-white"></div>
+      <aside className={cn(
+        "fixed inset-y-0 left-0 bg-[#0a2e10]/95 backdrop-blur-2xl border-r border-white/10 flex flex-col z-[70] transition-all duration-300 lg:static lg:w-80 p-6 overflow-y-auto shrink-0",
+        isSidebarOpen ? "w-80 translate-x-0 shadow-2xl shadow-black/50" : "w-80 -translate-x-full lg:translate-x-0"
+      )}>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#76c893] rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white rounded-sm rotate-45 flex items-center justify-center overflow-hidden">
+                <div className="w-3 h-3 sm:w-4 sm:h-4 bg-white"></div>
+              </div>
             </div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white uppercase">AGRONGOLA</h1>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">AGRONGOLA</h1>
+          <button 
+            onClick={() => setIsSidebarOpen(false)}
+            className="p-2 lg:hidden text-white/50 hover:text-white"
+          >
+            <X className="w-6 h-6" />
+          </button>
         </div>
 
         {/* Clima Widget */}
@@ -897,17 +959,41 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
             {crops.map(crop => {
               const stageInfo = getCropStage(crop.plantedAt, crop.name);
               return (
-                <div key={crop.id} className="p-3 bg-white/10 rounded-xl border border-white/10 cursor-default hover:bg-white/20 transition-all flex flex-col gap-2">
+                 <div key={crop.id} className="p-3 bg-white/10 rounded-xl border border-white/10 cursor-default hover:bg-white/20 transition-all flex flex-col gap-2 relative group-item">
                   <div>
                     <div className="flex justify-between items-start">
                       <p className="text-sm font-medium">{crop.name}</p>
-                      <button 
-                        onClick={() => setEditingAlertId(editingAlertId === crop.id ? null : crop.id)}
-                        className={cn("p-1.5 rounded-lg transition-colors border", editingAlertId === crop.id ? "bg-amber-500/20 text-amber-400 border-amber-500/50" : "bg-white/5 hover:bg-white/10 text-white/50 hover:text-white border-transparent")}
-                        title="Alertas de Solo por Satélite"
-                      >
-                        {crop.soilAlerts.moisture || crop.soilAlerts.nutrients ? <BellRing className="w-3.5 h-3.5 text-amber-400" /> : <Bell className="w-3.5 h-3.5" />}
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingCrop(crop);
+                            setNewCrop({ name: crop.name, plantedAt: crop.plantedAt, location: crop.location });
+                            setShowAddCrop(true);
+                          }}
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-[#76c893] transition-colors border border-transparent"
+                          title="Editar"
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCrop(crop.id);
+                          }}
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-red-400 transition-colors border border-transparent"
+                          title="Excluir"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => setEditingAlertId(editingAlertId === crop.id ? null : crop.id)}
+                          className={cn("p-1.5 rounded-lg transition-colors border ml-1", editingAlertId === crop.id ? "bg-amber-500/20 text-amber-400 border-amber-500/50" : "bg-white/5 hover:bg-white/10 text-white/50 hover:text-white border-transparent")}
+                          title="Alertas de Solo por Satélite"
+                        >
+                          {crop.soilAlerts.moisture || crop.soilAlerts.nutrients ? <BellRing className="w-3.5 h-3.5 text-amber-400" /> : <Bell className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-white/60 mt-1">
                       <MapPin className="w-3 h-3" />
@@ -1038,7 +1124,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
             </div>
           </div>
         </div>
-      </div>
+      </aside>
 
       <main className="flex-1 h-full w-full max-w-4xl mx-auto flex flex-col z-10 sm:p-6 lg:p-8 lg:gap-6">
         <div className="flex-1 bg-white/10 backdrop-blur-md sm:rounded-3xl border-x sm:border border-white/20 shadow-2xl flex flex-col overflow-hidden">
@@ -1046,7 +1132,13 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
       {/* Header */}
       <header className="p-4 bg-white/5 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-[#76c893] rounded-xl flex items-center justify-center shadow-lg">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 lg:hidden text-white/70 hover:text-white -ml-2"
+          >
+            <Map className="w-5 h-5" />
+          </button>
+          <div className="w-10 h-10 bg-[#76c893] rounded-xl flex items-center justify-center shadow-lg hidden sm:flex">
             <Leaf className="w-6 h-6 text-black" />
           </div>
           <div>
@@ -1177,7 +1269,18 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                       <div className="p-2 bg-[#76c893]/10 rounded-lg">
                         <Calendar className="w-5 h-5 text-[#76c893]" />
                       </div>
-                      <p className="text-[10px] text-white/40 font-bold">{plan.timestamp}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-[10px] text-white/40 font-bold mr-2">{plan.timestamp}</p>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePlan(plan.id);
+                          }}
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                        >
+                          <X className="w-3 h-3 text-white/40 hover:text-red-400" />
+                        </button>
+                      </div>
                     </div>
                     <h3 className="font-bold text-lg mb-1 group-hover:text-[#76c893] transition-colors">{plan.crop}</h3>
                     <p className="text-xs text-white/60 mb-4 line-clamp-2">{plan.data.location} • {plan.data.area}</p>
@@ -1548,9 +1651,76 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
         </div>
       </aside>
 
+      {/* Modal Nova/Editar Cultura (Centralizado) */}
+      {showAddCrop && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#0a2e10] border border-white/10 w-full max-w-md rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute -right-20 -top-20 w-64 h-64 bg-[#76c893]/10 rounded-full blur-3xl pointer-events-none"></div>
+            
+            <button 
+              onClick={() => {
+                setShowAddCrop(false);
+                setEditingCrop(null);
+                setNewCrop({ name: '', plantedAt: '', location: '' });
+              }} 
+              className="absolute top-6 right-6 p-2 text-white/20 hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            
+            <div className="flex items-center gap-3 mb-8">
+               <div className="p-3 bg-[#76c893]/20 rounded-2xl">
+                 <Leaf className="w-6 h-6 text-[#76c893]" />
+               </div>
+               <h2 className="text-2xl font-serif font-bold text-white">
+                 {editingCrop ? 'Editar Plantação' : 'Nova Plantação'}
+               </h2>
+            </div>
+
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-white/40 ml-1 tracking-widest">Nome da Cultura</label>
+                <input 
+                  placeholder="Ex: Milho, Mandioca..."
+                  value={newCrop.name}
+                  onChange={e => setNewCrop({...newCrop, name: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 focus:border-[#76c893]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-white/40 ml-1 tracking-widest">Data de Plantio</label>
+                <input 
+                  type="date"
+                  value={newCrop.plantedAt}
+                  onChange={e => setNewCrop({...newCrop, plantedAt: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 focus:border-[#76c893]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all color-scheme-dark"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase font-bold text-white/40 ml-1 tracking-widest">Localização / Lote</label>
+                <input 
+                  placeholder="Ex: Fazenda Boa Vista, Lote 4..."
+                  value={newCrop.location}
+                  onChange={e => setNewCrop({...newCrop, location: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 focus:border-[#76c893]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all"
+                />
+              </div>
+
+              <button 
+                onClick={handleAddCrop}
+                className="w-full bg-[#76c893] hover:bg-green-400 text-black py-5 rounded-2xl font-bold transition-all shadow-xl shadow-green-900/40 mt-4 active:scale-95"
+              >
+                {editingCrop ? 'Salvar Alterações' : 'Confirmar Cadastro'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Footer corporativo fixo no fundo */}
-      <footer className="fixed bottom-0 left-0 w-full py-2 bg-[#0a0a0a]/80 backdrop-blur-sm z-50 text-center border-t border-white/5">
-        <p className="text-[9px] text-white/30 uppercase tracking-widest font-medium">
+      <footer className="fixed bottom-0 left-0 w-full py-2 bg-[#0a0a0a]/80 backdrop-blur-sm z-[90] text-center border-t border-white/5">
+        <p className="text-[9px] text-white/30 uppercase tracking-widest font-medium px-4">
           Todos direitos reservados para empresa Pro Engenharia Angola. Por: Bernardino Felizardo
         </p>
       </footer>
