@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Agrongola 3.0 (Assistente Agrícola)",
+  "description": "Virtual agronomist assistant for farmers, specializing in diagnosis and practical advice.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
