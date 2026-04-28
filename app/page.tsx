@@ -8,6 +8,7 @@ import ReactMarkdown from 'react-markdown';
 import { searchPestDisease } from '@/lib/agri-library';
 import AgroMapWrapper from '@/components/AgroMapWrapper';
 import { Map } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 // Define the system prompt
 const SYSTEM_INSTRUCTION = `Você é o AgroAssist AI (evolução do AgriSmart), denominado AGRONGOLA, um agrônomo virtual especialista, altamente inteligente e empático, criado para auxiliar agricultores diretamente pelo WhatsApp.
@@ -223,59 +224,73 @@ export default function Home() {
   const [showAddCrop, setShowAddCrop] = useState(false);
   const [newCrop, setNewCrop] = useState({ name: '', plantedAt: '', location: '' });
   const [editingAlertId, setEditingAlertId] = useState<string | null>(null);
-
   const [weatherData, setWeatherData] = useState<WeatherData>({ temp: null, humidity: null, rainProb: null, rainTime: null });
 
-  // Hydration from localStorage
+  // Hardcoded for demo/tutorial - in real app would use auth.getUser()
+  const USER_ID = '00000000-0000-0000-0000-000000000000';
+
+  // Hydration from Supabase (with localStorage fallback)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedCrops = localStorage.getItem('agrongola_crops');
-      if (savedCrops) {
-        try {
-          const parsed = JSON.parse(savedCrops);
-          if (parsed && Array.isArray(parsed)) setTimeout(() => setCrops(parsed), 0);
-        } catch (e) {
-          console.error("Error loading crops:", e);
-        }
-      } else {
-        setTimeout(() => setCrops([{ id: '1', name: 'Milho Safrinha', plantedAt: '2026-03-15', location: 'Fazenda Boa Vista', soilAlerts: { moisture: true, moistureThreshold: 30, nutrients: true } }]), 0);
-      }
+    async function hydrate() {
+      if (typeof window === 'undefined') return;
 
-      const savedMessages = localStorage.getItem('agrongola_messages');
-      if (savedMessages) {
-        try {
-          const parsed = JSON.parse(savedMessages);
-          if (parsed && Array.isArray(parsed)) setTimeout(() => setMessages(parsed), 0);
-        } catch (e) {
-          console.error("Error loading messages:", e);
+      // Try Supabase first
+      try {
+        const { data: cropsData } = await supabase.from('crops').select('*').eq('user_id', USER_ID);
+        if (cropsData && cropsData.length > 0) {
+          setCrops(cropsData.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            plantedAt: c.planted_at,
+            location: c.location,
+            soilAlerts: {
+              moisture: c.moisture_alert,
+              moistureThreshold: c.moisture_threshold,
+              nutrients: c.nutrients_alert
+            }
+          })));
+        } else {
+          // Fallback to local
+          const savedCrops = localStorage.getItem('agrongola_crops');
+          if (savedCrops) setCrops(JSON.parse(savedCrops));
         }
-      } else {
-        setTimeout(() => setMessages([
-          {
-            role: 'model',
-            parts: [{ text: 'Olá! Sou o **AGRONGOLA**, seu agrônomo virtual. Como posso ajudar com sua plantação ou criação hoje?' }]
-          }
-        ]), 0);
-      }
 
-      const savedP = localStorage.getItem('agrongola_plans');
-      if (savedP) {
-        try {
-          const parsed = JSON.parse(savedP);
-          if (parsed && Array.isArray(parsed)) setTimeout(() => setSavedPlans(parsed), 0);
-        } catch (e) {
-          console.error("Error loading plans:", e);
+        const { data: msgsData } = await supabase.from('messages').select('*').eq('user_id', USER_ID).order('created_at', { ascending: true });
+        if (msgsData && msgsData.length > 0) {
+          setMessages(msgsData.map((m: any) => ({ role: m.role as 'user' | 'model', parts: m.parts })));
+        } else {
+          const savedMessages = localStorage.getItem('agrongola_messages');
+          if (savedMessages) setMessages(JSON.parse(savedMessages));
+          else setMessages([{ role: 'model', parts: [{ text: 'Olá! Sou o **AGRONGOLA**, seu agrônomo virtual. Como posso ajudar com sua plantação ou criação hoje?' }] }]);
         }
+
+        const { data: plansData } = await supabase.from('crop_plans').select('*').eq('user_id', USER_ID).order('created_at', { ascending: false });
+        if (plansData && plansData.length > 0) {
+          setSavedPlans(plansData.map((p: any) => ({
+            id: p.id,
+            timestamp: p.timestamp,
+            crop: p.crop,
+            report: p.report,
+            data: p.data
+          })));
+        } else {
+          const savedP = localStorage.getItem('agrongola_plans');
+          if (savedP) setSavedPlans(JSON.parse(savedP));
+        }
+      } catch (err) {
+        console.error("Supabase hydration error:", err);
+      } finally {
+        setIsHydrated(true);
       }
-      setTimeout(() => setIsHydrated(true), 0);
     }
+    hydrate();
   }, []);
 
+  // Sync to Supabase
   useEffect(() => {
     if (!isHydrated) return;
-    if (crops.length > 0) {
-      localStorage.setItem('agrongola_crops', JSON.stringify(crops));
-    }
+    localStorage.setItem('agrongola_crops', JSON.stringify(crops));
+    // Implementation for real-time sync could go here or on specific actions
   }, [crops, isHydrated]);
 
   useEffect(() => {
@@ -516,6 +531,13 @@ export default function Home() {
       parts: userParts,
     };
 
+    // Sync to Supabase
+    supabase.from('messages').insert({
+      user_id: USER_ID,
+      role: 'user',
+      parts: userParts
+    }).then();
+
     setMessages((prev) => [...prev, newUserMessage]);
     setInput('');
     clearImages();
@@ -574,7 +596,15 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
 
            if (response.text) {
              const reportText = response.text || '';
-             setMessages((prev) => [...prev, { role: 'model', parts: [{ text: reportText }] }]);
+             const modelMsg: Message = { role: 'model', parts: [{ text: reportText }] };
+             setMessages((prev) => [...prev, modelMsg]);
+             
+             // Sync to Supabase
+             supabase.from('messages').insert({
+               user_id: USER_ID,
+               role: 'model',
+               parts: modelMsg.parts
+             }).then();
              
              const newPlan: CropPlan = {
                id: generateId(),
@@ -584,6 +614,16 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                data: newWizardData
              };
              setSavedPlans(prev => [newPlan, ...prev]);
+
+             // Sync to Supabase
+             supabase.from('crop_plans').insert({
+                id: newPlan.id,
+                user_id: USER_ID,
+                crop: newPlan.crop,
+                report: newPlan.report,
+                data: newPlan.data,
+                timestamp: newPlan.timestamp
+             }).then();
            }
          } catch (error: any) {
            console.error("Error generating report:", error);
@@ -669,11 +709,20 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
             return generateResponse(contents);
           }
         } else if (response.text) {
+          const modelResponseText = response.text || '';
+          
+          // Sync to Supabase
+          supabase.from('messages').insert({
+            user_id: USER_ID,
+            role: 'model',
+            parts: [{ text: modelResponseText }]
+          }).then();
+
           setMessages((prev) => {
             const newMessages = [...prev];
             newMessages[newMessages.length - 1] = {
               role: 'model',
-              parts: [{ text: response.text || '' }]
+              parts: [{ text: modelResponseText }]
             };
             return newMessages;
           });
@@ -716,11 +765,26 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
 
   const handleAddCrop = () => {
     if (newCrop.name && newCrop.location && newCrop.plantedAt) {
-      setCrops([...crops, { 
+      const planId = generateId();
+      const planData = { 
         ...newCrop, 
-        id: generateId(),
+        id: planId,
         soilAlerts: { moisture: false, moistureThreshold: 30, nutrients: false }
-      }]);
+      };
+      setCrops([...crops, planData]);
+      
+      // Sync to Supabase
+      supabase.from('crops').insert({
+        id: planId,
+        user_id: USER_ID,
+        name: newCrop.name,
+        planted_at: newCrop.plantedAt,
+        location: newCrop.location,
+        moisture_alert: false,
+        moisture_threshold: 30,
+        nutrients_alert: false
+      }).then();
+
       setNewCrop({ name: '', plantedAt: '', location: '' });
       setShowAddCrop(false);
     }
@@ -1003,6 +1067,8 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                 ];
                 setMessages(initialMsg);
                 localStorage.setItem('agrongola_messages', JSON.stringify(initialMsg));
+                // Sync to Supabase
+                supabase.from('messages').delete().eq('user_id', USER_ID).then();
               }
             }}
             className="p-2 text-white/40 hover:text-red-400 transition-colors"
@@ -1481,6 +1547,13 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           </div>
         </div>
       </aside>
+
+      {/* Footer corporativo fixo no fundo */}
+      <footer className="fixed bottom-0 left-0 w-full py-2 bg-[#0a0a0a]/80 backdrop-blur-sm z-50 text-center border-t border-white/5">
+        <p className="text-[9px] text-white/30 uppercase tracking-widest font-medium">
+          Todos direitos reservados para empresa Pro Engenharia Angola. Por: Bernardino Felizardo
+        </p>
+      </footer>
     </div>
   );
 }
