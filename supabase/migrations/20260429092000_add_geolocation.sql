@@ -8,7 +8,7 @@ create table if not exists public.globe_markers (
     label text not null,
     latitude double precision not null,
     longitude double precision not null,
-    color text default '#76c893',
+    color text default '#38bdf8',
     size float default 0.1,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );

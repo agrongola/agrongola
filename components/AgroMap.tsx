@@ -16,7 +16,7 @@ L.Icon.Default.mergeOptions({
 });
 
 const farmIcon = new L.Icon({
-  iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-green.png',
+  iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-2x-cyan.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -203,7 +203,7 @@ export default function AgroMap({ farmLocation, onSetFarmLocation }: AgroMapProp
           <Marker position={[farmLocation.lat, farmLocation.lng]} icon={farmIcon}>
             <Popup className="agro-popup">
               <div className="flex flex-col">
-                <span className="font-bold text-sm text-green-700">Fazenda / Lote</span>
+                <span className="font-bold text-sm text-blue-700">Fazenda / Lote</span>
                 <span className="text-xs text-gray-500 mt-1">Lat: {farmLocation.lat.toFixed(6)}</span>
                 <span className="text-xs text-gray-500">Lng: {farmLocation.lng.toFixed(6)}</span>
               </div>
@@ -223,8 +223,8 @@ export default function AgroMap({ farmLocation, onSetFarmLocation }: AgroMapProp
           <Circle 
             center={[targetLocation.lat, targetLocation.lng]} 
             pathOptions={{ 
-              color: isScanning ? '#76c893' : '#3b82f6', 
-              fillColor: isScanning ? '#76c893' : '#3b82f6', 
+              color: isScanning ? '#38bdf8' : '#3b82f6', 
+              fillColor: isScanning ? '#38bdf8' : '#3b82f6', 
               fillOpacity: isScanning ? 0.2 : 0.1, 
               weight: 2, 
               dashArray: isScanning ? '5, 10' : undefined,
@@ -248,7 +248,7 @@ export default function AgroMap({ farmLocation, onSetFarmLocation }: AgroMapProp
                 <span className="font-bold text-sm text-yellow-700">Trator John Deere 5090</span>
                 <span className="text-xs text-gray-500 mt-1">Status: Em operação (Plantio)</span>
                 <span className="text-xs text-gray-500">Velocidade: 6.2 km/h</span>
-                <span className="text-[10px] text-green-600 mt-1">Sinal GPS Analisado (Tempo Real)</span>
+                <span className="text-[10px] text-blue-600 mt-1">Sinal GPS Analisado (Tempo Real)</span>
               </div>
             </Popup>
           </Marker>
@@ -275,7 +275,7 @@ export default function AgroMap({ farmLocation, onSetFarmLocation }: AgroMapProp
 
       <div className="absolute top-6 left-6 z-[1000] bg-black/70 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/20 text-white max-w-[260px] pointer-events-none shadow-2xl">
         <h3 className="font-bold text-sm mb-1.5 flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-[#76c893]" />
+          <MapPin className="w-4 h-4 text-[#38bdf8]" />
           Georreferenciamento
         </h3>
         <p className="text-xs text-white/80 leading-relaxed">
@@ -285,8 +285,8 @@ export default function AgroMap({ farmLocation, onSetFarmLocation }: AgroMapProp
 
       {isScanning && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1000] pointer-events-none flex flex-col items-center">
-          <div className="w-32 h-32 border-4 border-[#76c893] rounded-full border-t-transparent animate-spin"></div>
-          <div className="mt-4 bg-black/80 px-4 py-2 rounded-full text-[#76c893] text-[10px] font-bold font-mono tracking-widest flex items-center gap-2 shadow-xl border border-[#76c893]/30">
+          <div className="w-32 h-32 border-4 border-[#38bdf8] rounded-full border-t-transparent animate-spin"></div>
+          <div className="mt-4 bg-black/80 px-4 py-2 rounded-full text-[#38bdf8] text-[10px] font-bold font-mono tracking-widest flex items-center gap-2 shadow-xl border border-[#38bdf8]/30">
             <BrainCircuit className="w-3.5 h-3.5 animate-pulse" />
             ANALISANDO BORDAS (10ha)...
           </div>
@@ -294,27 +294,27 @@ export default function AgroMap({ farmLocation, onSetFarmLocation }: AgroMapProp
       )}
 
       {aiInsights && !isScanning && (
-         <div className="absolute top-6 right-6 z-[1000] bg-black/80 backdrop-blur-md p-4 rounded-2xl border border-[#76c893]/40 text-white w-[280px] shadow-2xl max-h-[85vh] overflow-y-auto">
-           <h4 className="font-bold text-sm text-[#76c893] gap-2 mb-3 flex items-center border-b border-white/10 pb-2">
+         <div className="absolute top-6 right-6 z-[1000] bg-black/80 backdrop-blur-md p-4 rounded-2xl border border-[#38bdf8]/40 text-white w-[280px] shadow-2xl max-h-[85vh] overflow-y-auto">
+           <h4 className="font-bold text-sm text-[#38bdf8] gap-2 mb-3 flex items-center border-b border-white/10 pb-2">
              <BrainCircuit className="w-4 h-4" />
              Relatório IoT IA (10ha)
            </h4>
            <div className="text-xs text-white/90 space-y-3 font-mono">
              <div className="space-y-1">
-               <p className="flex justify-between items-center"><span className="text-white/60">Índice Vegetativo (NDVI):</span> <span className="text-green-400 font-bold bg-green-400/10 px-1.5 rounded">0.72 - Ótimo</span></p>
-               <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-green-400 h-1 rounded-full w-[72%]"></div></div>
+               <p className="flex justify-between items-center"><span className="text-white/60">Índice Vegetativo (NDVI):</span> <span className="text-blue-400 font-bold bg-blue-400/10 px-1.5 rounded">0.72 - Ótimo</span></p>
+               <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-blue-400 h-1 rounded-full w-[72%]"></div></div>
              </div>
              <div className="space-y-1">
                <p className="flex justify-between items-center"><span className="text-white/60">Umidade Estimada:</span> <span className="text-amber-400 font-bold bg-amber-400/10 px-1.5 rounded">45% - Alerta</span></p>
                <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-amber-400 h-1 rounded-full w-[45%]"></div></div>
              </div>
              <div className="space-y-1">
-               <p className="flex justify-between items-center"><span className="text-white/60">Risco de Pragas/Patógenos:</span> <span className="text-blue-400 font-bold bg-blue-400/10 px-1.5 rounded">Baixo</span></p>
-               <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-blue-400 h-1 rounded-full w-[20%]"></div></div>
+               <p className="flex justify-between items-center"><span className="text-white/60">Risco de Pragas/Patógenos:</span> <span className="text-sky-400 font-bold bg-sky-400/10 px-1.5 rounded">Baixo</span></p>
+               <div className="w-full bg-white/10 rounded-full h-1"><div className="bg-sky-400 h-1 rounded-full w-[20%]"></div></div>
              </div>
              
-             <div className="bg-[#76c893]/10 p-2.5 rounded-lg mt-3 border border-[#76c893]/20">
-               <p className="text-[10px] uppercase text-[#76c893] font-bold mb-1">Diagnóstico Específico</p>
+             <div className="bg-[#38bdf8]/10 p-2.5 rounded-lg mt-3 border border-[#38bdf8]/20">
+               <p className="text-[10px] uppercase text-[#38bdf8] font-bold mb-1">Diagnóstico Específico</p>
                <p className="leading-relaxed text-white/80">
                  Identificada leve assimetria térmica no quadrante leste. Sugestão: verificar aspersores da área ou adicionar matéria orgânica no solo.
                </p>

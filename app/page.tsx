@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Send, Image as ImageIcon, X, Paperclip, Tractor, Leaf, Plus, Calendar, MapPin, Sprout, Bell, BellRing, Droplet, Zap, Mic, Square, Globe as GlobeIcon } from 'lucide-react';
+import { Send, Image as ImageIcon, X, Paperclip, Tractor, Leaf, Plus, Calendar, MapPin, Sprout, Bell, BellRing, Droplet, Zap, Mic, Square, Globe as GlobeIcon, BarChart3, TrendingUp, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { searchPestDisease } from '@/lib/agri-library';
@@ -11,6 +11,21 @@ import { Map } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Globe } from '@/components/ui/globe';
 import Image from 'next/image';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area,
+  BarChart,
+  Bar,
+  Cell
+} from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Define the system prompt
 const SYSTEM_INSTRUCTION = `Você é o AgroAssist AI (evolução do AgriSmart), denominado AGRONGOLA, um agrônomo virtual especialista, altamente inteligente e empático, criado para auxiliar agricultores diretamente pelo WhatsApp.
@@ -491,7 +506,8 @@ export default function Home() {
     fetchWeather();
   }, []);
 
-  const [viewMode, setViewMode] = useState<'chat' | 'map' | 'planning' | 'globe'>('chat');
+  const [viewMode, setViewMode] = useState<'chat' | 'map' | 'planning' | 'globe' | 'dashboard'>('chat');
+  const [selectedCropDetail, setSelectedCropDetail] = useState<Crop | null>(null);
   const [farmLocation, setFarmLocation] = useState<{lat: number, lng: number} | null>(null);
   const [selectedPlanDetail, setSelectedPlanDetail] = useState<CropPlan | null>(null);
   
@@ -635,8 +651,10 @@ Lembre-se de seguir a estrutura 📄 RELATÓRIO AGRONGOLA 🌱 especificada nas 
 IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTURAS** (ex: o que plantar depois do ${newWizardData.crop} para recuperar o solo).`;
 
          try {
-           const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-           if (!apiKey) throw new Error('API Key não configurada.');
+           const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || (typeof window !== 'undefined' ? (window as any).GEMINI_API_KEY : undefined);
+           if (!apiKey || apiKey === 'your-gemini-api-key' || apiKey === 'MY_GEMINI_API_KEY') {
+             throw new Error('API Key não configurada. Se estiver no Vercel, adicione NEXT_PUBLIC_GEMINI_API_KEY às variáveis de ambiente.');
+           }
            
            const ai = new GoogleGenAI({ apiKey });
            const chatHistory = [...messages, newUserMessage].map(m => ({
@@ -687,7 +705,11 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
            }
          } catch (error: any) {
            console.error("Error generating report:", error);
-           setMessages((prev) => [...prev, { role: 'model', parts: [{ text: '⚠️ Erro ao gerar relatório. Verifique sua conexão ou limite de uso.' }] }]);
+           let msg = '⚠️ Erro ao gerar relatório. Verifique sua conexão ou limite de uso.';
+           if (error?.message && error.message.includes('API Key')) {
+             msg = `⚠️ **Erro de Configuração:** ${error.message}`;
+           }
+           setMessages((prev) => [...prev, { role: 'model', parts: [{ text: msg }] }]);
          } finally {
            setIsLoading(false);
          }
@@ -699,8 +721,10 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
     setIsLoading(true);
 
     try {
-      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-      if (!apiKey) throw new Error('API Key não configurada.');
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || (typeof window !== 'undefined' ? (window as any).GEMINI_API_KEY : undefined);
+      if (!apiKey || apiKey === 'your-gemini-api-key' || apiKey === 'MY_GEMINI_API_KEY') {
+        throw new Error('API Key não configurada. Se estiver no Vercel, adicione NEXT_PUBLIC_GEMINI_API_KEY às variáveis de ambiente.');
+      }
 
       const ai = new GoogleGenAI({ apiKey });
 
@@ -796,10 +820,14 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
       
       let errorMessage = '⚠️ *Desculpe, ocorreu um erro ao analisar sua mensagem. Por favor, tente novamente.*';
       
-      // Check for 429 Rate Limit / Quota errors
-      const errorString = typeof error === 'string' ? error : JSON.stringify(error) + (error?.message || '');
-      if (errorString.includes('429') || errorString.includes('quota') || errorString.includes('RESOURCE_EXHAUSTED')) {
-        errorMessage = '⚠️ *O limite de uso (quota) da inteligência artificial foi atingido. Por favor, aguarde um pouco antes de tentar novamente, ou verifique sua configuração de API.*';
+      // Use specific error message if it's one of ours
+      if (error?.message && error.message.includes('API Key')) {
+        errorMessage = `⚠️ **Erro de Configuração:** ${error.message}`;
+      } else {
+        const errorString = typeof error === 'string' ? error : JSON.stringify(error) + (error?.message || '');
+        if (errorString.includes('429') || errorString.includes('quota') || errorString.includes('RESOURCE_EXHAUSTED')) {
+          errorMessage = '⚠️ *O limite de uso (quota) da inteligência artificial foi atingido. Por favor, aguarde um pouco antes de tentar novamente, ou verifique sua configuração de API.*';
+        }
       }
 
       setMessages((prev) => {
@@ -933,8 +961,8 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] uppercase font-bold text-white/50 tracking-wider">Clima Local</p>
             {weatherData.temp !== null ? (
-              <span className="flex items-center gap-1 text-xs text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span> Ao vivo
+              <span className="flex items-center gap-1 text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span> Ao vivo
               </span>
             ) : (
               <span className="text-[10px] text-white/30">Carregando...</span>
@@ -1017,7 +1045,11 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
             {crops.map(crop => {
               const stageInfo = getCropStage(crop.plantedAt, crop.name);
               return (
-                 <div key={crop.id} className="p-3 bg-white/10 rounded-xl border border-white/10 cursor-default hover:bg-white/20 transition-all flex flex-col gap-2 relative group-item">
+                  <div 
+                    key={crop.id} 
+                    onClick={() => setSelectedCropDetail(crop)}
+                    className="p-3 bg-white/10 rounded-xl border border-white/10 cursor-pointer hover:bg-white/20 transition-all flex flex-col gap-2 relative group-item"
+                  >
                   <div>
                     <div className="flex justify-between items-start">
                       <p className="text-sm font-medium">{crop.name}</p>
@@ -1077,7 +1109,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                     {/* Dynamic progressive bar */}
                     <div className="relative h-2 w-full bg-white/10 rounded-full overflow-hidden">
                        <div 
-                          className="absolute top-0 left-0 h-full bg-gradient-to-r from-green-600 to-[#76c893] transition-all duration-1000 rounded-full" 
+                          className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-600 to-[#38bdf8] transition-all duration-1000 rounded-full" 
                           style={{ width: `${Math.min(Math.max(stageInfo.progress, 2), 100)}%` }} 
                        />
                        {/* Subtle markers for stages */}
@@ -1174,7 +1206,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 text-xs text-white/60">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
               Agrônomo Virtual Online
             </div>
           </div>
@@ -1226,27 +1258,34 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           <div className="flex border border-white/20 rounded-xl overflow-hidden bg-white/5 p-1">
             <button 
               onClick={() => setViewMode('chat')}
-              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'chat' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
+              className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'chat' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
             >
               Chat
             </button>
             <button 
+              onClick={() => setViewMode('dashboard')}
+              className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'dashboard' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              Painel
+            </button>
+            <button 
               onClick={() => setViewMode('planning')}
-              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'planning' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
+              className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'planning' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
             >
               <Calendar className="w-3.5 h-3.5" />
               Safra
             </button>
             <button 
               onClick={() => setViewMode('map')}
-              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'map' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
+              className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'map' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
             >
               <Map className="w-3.5 h-3.5" />
               Mapa
             </button>
             <button 
               onClick={() => setViewMode('globe')}
-              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'globe' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
+              className={cn("px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'globe' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
             >
               <GlobeIcon className="w-3.5 h-3.5" />
               Globo
@@ -1254,6 +1293,288 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           </div>
         </div>
       </header>
+
+      {viewMode === 'dashboard' && (
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+              <div>
+                <h2 className="text-2xl font-bold font-serif text-white">Painel de Gestão</h2>
+                <p className="text-sm text-white/50">Visão geral da sua exploração agrícola</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-white/60 font-bold uppercase tracking-widest">
+                  Última atualização: {new Date().toLocaleTimeString('pt-AO')}
+                </span>
+              </div>
+            </div>
+
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-5 bg-white/5 border border-white/10 rounded-3xl relative overflow-hidden group"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Tractor className="w-12 h-12" />
+              </div>
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Culturas Ativas</p>
+              <h3 className="text-3xl font-bold text-white">{crops.length}</h3>
+              <div className="mt-4 flex items-center gap-1.5 text-xs text-[#38bdf8]">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>+12% vs mês anterior</span>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="p-5 bg-white/5 border border-white/10 rounded-3xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Droplet className="w-12 h-12" />
+              </div>
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Precipitação</p>
+              <h3 className="text-3xl font-bold text-white">{weatherData.rainProb || 0}%</h3>
+              <p className="mt-4 text-xs text-white/50">Probabilidade para hoje em Benguela</p>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="p-5 bg-white/5 border border-white/10 rounded-3xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Zap className="w-12 h-12" />
+              </div>
+              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-1">Alertas do Solo</p>
+              <h3 className="text-3xl font-bold text-white">
+                {crops.filter(c => c.soilAlerts.moisture || c.soilAlerts.nutrients).length}
+              </h3>
+              <div className="mt-4 flex items-center gap-1.5 text-xs text-orange-400">
+                <Bell className="w-3.5 h-3.5" />
+                <span>Necessita atenção imediata</span>
+              </div>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="p-5 bg-[#38bdf8]/10 border border-[#38bdf8]/20 rounded-3xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-20">
+                <Layers className="w-12 h-12 text-[#38bdf8]" />
+              </div>
+              <p className="text-[10px] font-bold text-[#38bdf8] uppercase tracking-widest mb-1">Estimativa de Safra</p>
+              <h3 className="text-3xl font-bold text-white">2.4 t/ha</h3>
+              <p className="mt-4 text-xs text-[#38bdf8]/80 font-medium font-mono uppercase tracking-tighter">Projeção Regional</p>
+            </motion.div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Chart */}
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4 }}
+              className="lg:col-span-2 p-6 bg-white/5 border border-white/10 rounded-3xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="font-bold text-lg">Projeção de Crescimento vs Ideal</h3>
+                  <p className="text-xs text-white/40">Baseado no ciclo fenológico do Milho em Angola</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#38bdf8]"></div>
+                    <span className="text-[10px] font-bold text-white/50 uppercase">Projetado</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-white/20"></div>
+                    <span className="text-[10px] font-bold text-white/50 uppercase">Mínimo</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={[
+                      { name: 'Sem 1', projected: 10, min: 5 },
+                      { name: 'Sem 3', projected: 30, min: 20 },
+                      { name: 'Sem 5', projected: 45, min: 35 },
+                      { name: 'Sem 7', projected: 70, min: 55 },
+                      { name: 'Sem 9', projected: 85, min: 75 },
+                      { name: 'Sem 11', projected: 100, min: 90 },
+                    ]}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorProj" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 10 }}
+                    />
+                    <RechartsTooltip 
+                      contentStyle={{ backgroundColor: '#0a0f1e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                      itemStyle={{ color: '#38bdf8' }}
+                    />
+                    <Area type="monotone" dataKey="projected" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#colorProj)" />
+                    <Area type="monotone" dataKey="min" stroke="rgba(255,255,255,0.2)" strokeWidth={2} fill="transparent" strokeDasharray="5 5" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </motion.div>
+
+            {/* Price Tracker & Quick Actions */}
+            <div className="space-y-6">
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.5 }}
+                className="p-6 bg-white/5 border border-white/10 rounded-3xl"
+              >
+                <h3 className="font-bold text-lg mb-4">Preços no Mercado (Luanda)</h3>
+                <div className="space-y-4">
+                  {[
+                    { item: 'Milho (Saco 50kg)', price: '12.500 Kz', trend: 'up' },
+                    { item: 'Mandioca (Kg)', price: '450 Kz', trend: 'down' },
+                    { item: 'Feijão (Kg)', price: '1.200 Kz', trend: 'stable' },
+                  ].map((market, i) => (
+                    <div key={i} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl">
+                      <div>
+                        <p className="text-xs font-bold text-white/80">{market.item}</p>
+                        <p className="text-sm font-bold text-[#38bdf8]">{market.price}</p>
+                      </div>
+                      <div className={cn(
+                        "p-1.5 rounded-lg",
+                        market.trend === 'up' ? "bg-green-400/10 text-green-400" : 
+                        market.trend === 'down' ? "bg-red-400/10 text-red-400" :
+                        "bg-white/10 text-white/40"
+                      )}>
+                        <TrendingUp className={cn("w-4 h-4", market.trend === 'down' && "rotate-180", market.trend === 'stable' && "rotate-90")} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.6 }}
+                className="p-6 bg-[#38bdf8] text-black rounded-3xl shadow-xl shadow-[#38bdf8]/10"
+              >
+                <h3 className="font-bold text-lg mb-2">Dica do AgroAssist</h3>
+                <p className="text-xs leading-relaxed font-medium mb-4">
+                  "O clima em Benguela indica chuva leve para quarta-feira. Ótimo momento para preparar a adubação de cobertura do seu milho."
+                </p>
+                <button 
+                   onClick={() => setViewMode('chat')}
+                   className="w-full py-2 bg-black text-white rounded-xl text-xs font-bold hover:bg-black/80 transition-all"
+                >
+                  Saber mais no Chat
+                </button>
+              </motion.div>
+            </div>
+          </div>
+
+          {/* Detailed Crop Status Table */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="p-6 bg-white/5 border border-white/10 rounded-3xl"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-lg">Estado das Plantações</h3>
+              <button 
+                onClick={() => setShowAddCrop(true)}
+                className="text-xs text-[#38bdf8] font-bold flex items-center gap-1 hover:underline"
+              >
+                <Plus className="w-3.5 h-3.5" /> Adicionar Filtro
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] uppercase font-bold text-white/30 tracking-widest border-b border-white/5">
+                    <th className="pb-4">Cultura</th>
+                    <th className="pb-4">Fase Atual</th>
+                    <th className="pb-4">Progresso</th>
+                    <th className="pb-4 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {crops.map((crop) => {
+                    const stats = getCropStage(crop.plantedAt, crop.name);
+                    return (
+                      <tr key={crop.id} className="group hover:bg-white/5 transition-colors">
+                        <td className="py-4 pr-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2.5 bg-white/5 rounded-xl group-hover:bg-[#38bdf8]/20 transition-colors">
+                              <Sprout className="w-5 h-5 text-[#38bdf8]" />
+                            </div>
+                            <div>
+                              <p className="font-bold text-sm">{crop.name}</p>
+                              <p className="text-[10px] text-white/40">{crop.location}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 pr-4">
+                          <span className="px-2 py-1 bg-white/5 rounded-lg text-[10px] font-bold text-white/60">
+                            {stats.stage}
+                          </span>
+                        </td>
+                        <td className="py-4 pr-4 min-w-[150px]">
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between text-[10px] font-bold">
+                              <span className="text-white/40">{stats.progress}% concluído</span>
+                              <span className="text-[#38bdf8]">Estimado</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${stats.progress}%` }}
+                                className="h-full bg-gradient-to-r from-[#38bdf8] to-sky-400 rounded-full"
+                              ></motion.div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-4 text-right">
+                          <button 
+                            onClick={() => setSelectedCropDetail(crop)}
+                            className="bg-white/5 hover:bg-white/10 p-2 rounded-xl text-white/60 hover:text-white transition-all"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {viewMode === 'map' && (
         <div className="flex-1 w-full bg-[#111] overflow-hidden relative rounded-b-3xl sm:rounded-b-none">
@@ -1336,7 +1657,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
             <div className="space-y-4">
               <button 
                 onClick={() => setSelectedPlanDetail(null)}
-                className="text-xs text-green-400 flex items-center gap-1 hover:underline mb-2"
+                className="text-xs text-blue-400 flex items-center gap-1 hover:underline mb-2"
               >
                 ← Voltar aos meus planos
               </button>
@@ -1428,11 +1749,8 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
       )}
 
       {viewMode === 'chat' && (
-        <>
-      {/* Chat Area */}
-      <div 
-        className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6"
-      >
+        <div className="flex-1 flex flex-col min-h-0 bg-transparent">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
         <div className="flex justify-center mb-6">
           <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-200/80 text-[10px] sm:text-xs px-4 py-2 rounded-xl text-center max-w-md">
             <span className="font-bold text-yellow-400 mb-1 block">⚠️ AVISO</span>
@@ -1598,7 +1916,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                    document.querySelector('textarea')?.focus();
                  }, 50);
                }}
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-[#76c893]/20 border border-white/10 rounded-xl text-[11px] font-bold text-white transition-all whitespace-nowrap"
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-[#38bdf8]/20 border border-white/10 rounded-xl text-[11px] font-bold text-white transition-all whitespace-nowrap"
             >
               <Sprout className="w-3.5 h-3.5 text-amber-500" />
               Análise de Solo
@@ -1607,9 +1925,9 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                onClick={() => {
                  fileInputRef.current?.click();
                }}
-               className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-[#76c893]/20 border border-white/10 rounded-xl text-[11px] font-bold text-white transition-all whitespace-nowrap"
+               className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-[#38bdf8]/20 border border-white/10 rounded-xl text-[11px] font-bold text-white transition-all whitespace-nowrap"
             >
-              <Leaf className="w-3.5 h-3.5 text-green-400" />
+              <Leaf className="w-3.5 h-3.5 text-blue-400" />
               Enviar Foto
             </button>
           </div>
@@ -1617,7 +1935,6 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
       )}
 
       {/* Input Area */}
-      {viewMode === 'chat' && (
       <footer className="relative p-4 bg-white/5 border-t border-white/10 flex gap-3 sm:gap-4 items-end z-20">
         <input 
           type="file" 
@@ -1675,7 +1992,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
             disabled={isLoading}
             className={cn(
               "w-12 h-12 text-black rounded-2xl flex items-center justify-center shadow-lg transition-all focus:outline-none shrink-0",
-              isLoading ? "bg-white/10 text-white/20 cursor-not-allowed border border-white/5" : "bg-[#76c893] hover:bg-green-400 active:scale-95"
+              isLoading ? "bg-white/10 text-white/20 cursor-not-allowed border border-white/5" : "bg-[#38bdf8] hover:bg-sky-400 active:scale-95"
             )}
           >
             <Send className="w-5 h-5" />
@@ -1695,8 +2012,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           </button>
         )}
       </footer>
-      )}
-        </>
+        </div>
       )}
         </div>
       </main>
@@ -1709,7 +2025,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
             <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
               <p className="text-xs text-white/60 mb-1">Fazenda Boa Vista</p>
               <p className="text-xl font-bold">{weatherData.temp !== null ? `${Math.round(weatherData.temp)}°C` : '--°C'}</p>
-              {weatherData.rainTime && <p className="text-xs text-green-400 mt-1">Chuva prevista: {weatherData.rainTime}</p>}
+              {weatherData.rainTime && <p className="text-xs text-blue-400 mt-1">Chuva prevista: {weatherData.rainTime}</p>}
             </div>
             
             <div className="space-y-4">
@@ -1718,7 +2034,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                 <p className="text-xs font-bold">{weatherData.humidity !== null ? `${Math.round(weatherData.humidity)}%` : '--%'}</p>
               </div>
               <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div className="w-[72%] h-full bg-[#76c893]" style={{ width: weatherData.humidity !== null ? `${weatherData.humidity}%` : '0%' }}></div>
+                <div className="w-[72%] h-full bg-[#38bdf8]" style={{ width: weatherData.humidity !== null ? `${weatherData.humidity}%` : '0%' }}></div>
               </div>
               
               <div className="flex justify-between items-center">
@@ -1726,7 +2042,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                 <p className="text-xs font-bold">{weatherData.rainProb !== null ? `${weatherData.rainProb}%` : '--%'}</p>
               </div>
               <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div className="w-[60%] h-full bg-[#76c893]" style={{ width: weatherData.rainProb !== null ? `${weatherData.rainProb}%` : '0%' }}></div>
+                <div className="w-[60%] h-full bg-[#38bdf8]" style={{ width: weatherData.rainProb !== null ? `${weatherData.rainProb}%` : '0%' }}></div>
               </div>
             </div>
 
@@ -1764,7 +2080,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                       {/* Se configurou mas não desencadeou */}
                       {(crop.soilAlerts.moisture && (!weatherData.humidity || weatherData.humidity >= crop.soilAlerts.moistureThreshold)) && !crop.soilAlerts.nutrients && (
                          <div className="flex items-center gap-2 p-2 bg-white/5 rounded-xl border border-white/5">
-                           <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                           <div className="w-2 h-2 rounded-full bg-blue-400"></div>
                            <p className="text-[10px] text-white/60">Umidade OK para {crop.name}</p>
                          </div>
                       )}
@@ -1777,11 +2093,192 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
         </div>
       </aside>
 
+      {/* Modal Detalhes da Cultura */}
+      <AnimatePresence>
+        {selectedCropDetail && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-[#0a0f1e] border border-white/10 w-full max-w-2xl rounded-3xl shadow-2xl relative overflow-hidden"
+            >
+              {/* Header com gradiente */}
+              <div className="h-32 bg-gradient-to-r from-[#38bdf8]/40 to-sky-600/40 relative">
+                 <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/agro/800/400')] bg-cover bg-center mix-blend-overlay opacity-30"></div>
+                 <button 
+                  onClick={() => setSelectedCropDetail(null)} 
+                  className="absolute top-6 right-6 p-2 bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full text-white transition-colors z-10"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 sm:p-8 -mt-12 relative z-10">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="p-5 bg-[#0a0f1e] border border-white/10 rounded-3xl shadow-xl">
+                      <Sprout className="w-10 h-10 text-[#38bdf8]" />
+                    </div>
+                    <div>
+                      <h2 className="text-3xl font-serif font-bold text-white">{selectedCropDetail.name}</h2>
+                      <p className="text-white/50 font-medium flex items-center gap-1.5 mt-1">
+                        <MapPin className="w-3.5 h-3.5" />
+                        {selectedCropDetail.location}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                       onClick={() => {
+                         setEditingCrop(selectedCropDetail);
+                         setNewCrop({
+                           name: selectedCropDetail.name,
+                           plantedAt: selectedCropDetail.plantedAt,
+                           location: selectedCropDetail.location
+                         });
+                         setSelectedCropDetail(null);
+                         setShowAddCrop(true);
+                       }}
+                       className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold text-white transition-all ring-1 ring-white/10"
+                    >
+                      Editar
+                    </button>
+                    <button 
+                       onClick={() => {
+                         setViewMode('chat');
+                         setInput(`Conte-me mais sobre como cuidar da minha plantação de ${selectedCropDetail.name} em ${selectedCropDetail.location}. Está plantada desde ${selectedCropDetail.plantedAt}.`);
+                         setSelectedCropDetail(null);
+                       }}
+                       className="px-4 py-2 bg-[#38bdf8] hover:bg-sky-400 rounded-xl text-xs font-bold text-black transition-all"
+                    >
+                      Consultar IA
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Stats & Status */}
+                  <div className="space-y-6">
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
+                      <p className="text-[10px] uppercase font-bold text-white/30 tracking-widest mb-4 border-b border-white/5 pb-2">Ciclo de Vida</p>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-white/50 underline decoration-dotted">Data de Plantio</span>
+                          <span className="text-sm font-bold">{new Date(selectedCropDetail.plantedAt).toLocaleDateString('pt-AO')}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-white/50 underline decoration-dotted">Idade da Planta</span>
+                          <span className="text-sm font-bold">
+                            {Math.ceil((new Date().getTime() - new Date(selectedCropDetail.plantedAt).getTime()) / (1000 * 60 * 60 * 24))} dias
+                          </span>
+                        </div>
+                        <div className="space-y-1.5 pt-2">
+                           <div className="flex justify-between text-[10px] font-bold">
+                             <span className="text-white/40">Progresso do Ciclo</span>
+                             <span className="text-[#38bdf8]">{getCropStage(selectedCropDetail.plantedAt, selectedCropDetail.name).progress}%</span>
+                           </div>
+                           <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                             <div 
+                               style={{ width: `${getCropStage(selectedCropDetail.plantedAt, selectedCropDetail.name).progress}%` }}
+                               className="h-full bg-gradient-to-r from-[#38bdf8] to-sky-400 rounded-full"
+                             ></div>
+                           </div>
+                           <p className="text-[10px] text-white/30 text-center italic">Próxima fase estimada: {getCropStage(selectedCropDetail.plantedAt, selectedCropDetail.name).stage}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-2xl">
+                      <p className="text-[10px] uppercase font-bold text-white/30 tracking-widest mb-4 border-b border-white/5 pb-2">Configuração de Alertas</p>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Droplet className="w-4 h-4 text-blue-400" />
+                            <span className="text-xs font-medium">Monitor de Umidade</span>
+                          </div>
+                          <button 
+                            onClick={() => updateCropAlerts(selectedCropDetail.id, { ...selectedCropDetail.soilAlerts, moisture: !selectedCropDetail.soilAlerts.moisture })}
+                            className={cn("w-10 h-5 rounded-full transition-all relative", selectedCropDetail.soilAlerts.moisture ? "bg-[#38bdf8]" : "bg-white/10")}
+                          >
+                            <div className={cn("absolute top-1 w-3 h-3 bg-white rounded-full transition-all", selectedCropDetail.soilAlerts.moisture ? "left-6" : "left-1")}></div>
+                          </button>
+                        </div>
+                        {selectedCropDetail.soilAlerts.moisture && (
+                          <div className="space-y-2 pl-6 animate-in slide-in-from-left-2 duration-300">
+                            <div className="flex justify-between text-[10px] font-bold text-white/40">
+                              <span>Sensibilidade</span>
+                              <span>{selectedCropDetail.soilAlerts.moistureThreshold}% HR</span>
+                            </div>
+                            <input 
+                              type="range" 
+                              min="0" 
+                              max="100" 
+                              value={selectedCropDetail.soilAlerts.moistureThreshold}
+                              onChange={(e) => updateCropAlerts(selectedCropDetail.id, { ...selectedCropDetail.soilAlerts, moistureThreshold: parseInt(e.target.value) })}
+                              className="w-full accent-[#38bdf8] h-1 bg-white/10 rounded-full"
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-orange-400" />
+                            <span className="text-xs font-medium">Deficiência de Nutrientes</span>
+                          </div>
+                          <button 
+                            onClick={() => updateCropAlerts(selectedCropDetail.id, { ...selectedCropDetail.soilAlerts, nutrients: !selectedCropDetail.soilAlerts.nutrients })}
+                            className={cn("w-10 h-5 rounded-full transition-all relative", selectedCropDetail.soilAlerts.nutrients ? "bg-orange-400" : "bg-white/10")}
+                          >
+                            <div className={cn("absolute top-1 w-3 h-3 bg-white rounded-full transition-all", selectedCropDetail.soilAlerts.nutrients ? "left-6" : "left-1")}></div>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recommendations */}
+                  <div className="space-y-6">
+                    <div className="p-5 bg-white/5 border border-white/10 rounded-2xl h-full">
+                       <p className="text-[10px] uppercase font-bold text-white/30 tracking-widest mb-4 border-b border-white/5 pb-2">Tarefas Recomendadas</p>
+                       <div className="space-y-3">
+                         {[
+                           { text: 'Verificar manchas nas folhas inferiores', done: false },
+                           { text: 'Aplicar adubação de cobertura (semana 8)', done: false },
+                           { text: 'Limpar ervas daninhas ao redor do caule', done: true },
+                           { text: 'Controle de formigas cortadeiras', done: false },
+                         ].map((task, i) => (
+                           <div key={i} className="flex items-start gap-3 p-3 bg-white/5 rounded-xl group transition-all hover:bg-white/10">
+                             <div className={cn("w-5 h-5 rounded border flex items-center justify-center mt-0.5", task.done ? "bg-[#38bdf8] border-[#38bdf8]" : "border-white/20")}>
+                               {task.done && <Send className="w-3 h-3 text-black" />}
+                             </div>
+                             <p className={cn("text-xs", task.done ? "text-white/30 line-through" : "text-white/80")}>{task.text}</p>
+                           </div>
+                         ))}
+                       </div>
+
+                       <div className="mt-8 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl">
+                         <div className="flex items-center gap-2 mb-2 text-blue-400">
+                           <BellRing className="w-4 h-4" />
+                           <p className="text-[10px] font-bold uppercase tracking-widest">Alerta Meteorológico</p>
+                         </div>
+                         <p className="text-xs text-white/80">
+                           Temperaturas acima de 32°C previstas para amanhã. Aumente a frequência da rega manual no período da manhã.
+                         </p>
+                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Modal Nova/Editar Cultura (Centralizado) */}
       {showAddCrop && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="bg-[#0a2e10] border border-white/10 w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-y-auto max-h-[90vh]">
-            <div className="absolute -right-20 -top-20 w-64 h-64 bg-[#76c893]/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="bg-[#0a0f1e] border border-white/10 w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+            <div className="absolute -right-20 -top-20 w-64 h-64 bg-[#38bdf8]/10 rounded-full blur-3xl pointer-events-none"></div>
             
             <button 
               onClick={() => {
@@ -1795,8 +2292,8 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
             </button>
             
             <div className="flex items-center gap-3 mb-8">
-               <div className="p-3 bg-[#76c893]/20 rounded-2xl">
-                 <Leaf className="w-6 h-6 text-[#76c893]" />
+               <div className="p-3 bg-[#38bdf8]/20 rounded-2xl">
+                 <Leaf className="w-6 h-6 text-[#38bdf8]" />
                </div>
                <h2 className="text-2xl font-serif font-bold text-white">
                  {editingCrop ? 'Editar Plantação' : 'Nova Plantação'}
@@ -1810,7 +2307,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                   placeholder="Ex: Milho, Mandioca..."
                   value={newCrop.name}
                   onChange={e => setNewCrop({...newCrop, name: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 focus:border-[#76c893]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all"
+                  className="w-full bg-white/5 border border-white/10 focus:border-[#38bdf8]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all"
                 />
               </div>
               
@@ -1820,7 +2317,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                   type="date"
                   value={newCrop.plantedAt}
                   onChange={e => setNewCrop({...newCrop, plantedAt: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 focus:border-[#76c893]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all color-scheme-dark"
+                  className="w-full bg-white/5 border border-white/10 focus:border-[#38bdf8]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all color-scheme-dark"
                 />
               </div>
 
@@ -1830,13 +2327,13 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                   placeholder="Ex: Fazenda Boa Vista, Lote 4..."
                   value={newCrop.location}
                   onChange={e => setNewCrop({...newCrop, location: e.target.value})}
-                  className="w-full bg-white/5 border border-white/10 focus:border-[#76c893]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all"
+                  className="w-full bg-white/5 border border-white/10 focus:border-[#38bdf8]/50 rounded-2xl px-5 py-4 text-white placeholder-white/20 focus:outline-none transition-all"
                 />
               </div>
 
               <button 
                 onClick={handleAddCrop}
-                className="w-full bg-[#76c893] hover:bg-green-400 text-black py-5 rounded-2xl font-bold transition-all shadow-xl shadow-green-900/40 mt-4 active:scale-95"
+                className="w-full bg-[#38bdf8] hover:bg-sky-400 text-black py-5 rounded-2xl font-bold transition-all shadow-xl shadow-blue-900/40 mt-4 active:scale-95"
               >
                 {editingCrop ? 'Salvar Alterações' : 'Confirmar Cadastro'}
               </button>
