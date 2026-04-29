@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { Send, Image as ImageIcon, X, Paperclip, Tractor, Leaf, Plus, Calendar, MapPin, Sprout, Bell, BellRing, Droplet, Zap, Mic, Square, Globe as GlobeIcon, BarChart3, TrendingUp, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -237,6 +237,102 @@ const generateId = () => {
     const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+};
+
+// Define glossary of technical terms for tooltips
+const AGRO_GLOSSARY: Record<string, string> = {
+  'NDVI': 'Índice de Vegetação por Diferença Normalizada. Mede a densidade e saúde da vegetação através de sensores (satélite ou drone).',
+  'EPI': 'Equipamento de Proteção Individual. Inclui botas, luvas, máscaras e viseiras para proteger o agricultor agrícola.',
+  'PH': 'Potencial de Hidrogênio. Escala que mede a acidez ou alcalinidade do solo (ideal entre 5.5 e 6.5 para a maioria das culturas).',
+  'CALAGEM': 'Aplicação de calcário para corrigir a acidez (neutralizar o Alumínio tóxico) e fornecer Cálcio e Magnésio ao solo.',
+  'NPK': 'Adubo mineral composto por Nitrogênio (N), Fósforo (P) e Potássio (K), os três nutrientes principais para as plantas.',
+  'LIXIVIAÇÃO': 'Processo onde os nutrientes são "lavados" para camadas profundas do solo pela água da chuva ou irrigação em excesso.',
+  'ADUBAÇÃO': 'Ato de fornecer nutrientes ao solo ou diretamente às plantas para garantir um bom crescimento e produção.',
+  'SAFRA': 'O período de colheita principal de uma determinada cultura agrícola.',
+  'ENTRESSAFRA': 'Período entre o fim de uma colheita e o início de um novo plantio, muitas vezes usado para rotação de culturas.',
+  'HUMUS': 'Matéria orgânica decomposta que melhora a estrutura, a retenção de água e a fertilidade do solo.',
+  'DEFENSIVOS': 'Também chamados de pesticidas ou agrotóxicos; produtos usados para prevenir ou combater pragas e doenças.',
+  'PULVERIZAÇÃO': 'Método de aplicação de defensivos ou fertilizantes líquidos em forma de névoa ou gotas finas.',
+  'FENOLOGIA': 'Estudo das fases de crescimento das plantas (germinação, floração, maturação) de acordo com o clima.',
+  'FOTOSSÍNTESE': 'Processo químico das plantas que usa luz solar, CO2 e água para produzir açúcar e oxigênio.',
+  'MATÉRIA ORGÂNICA': 'Restos de plantas e animais no solo que servem como "comida" para a terra e plantas.',
+  'COMPACTAÇÃO': 'Quando o solo fica muito "duro" ou apertado, dificultando a entrada de ar, água e o crescimento das raízes.',
+  'ROTAÇÃO DE CULTURAS': 'Técnica de alternar diferentes plantas na mesma área para evitar o esgotamento do solo e pragas.',
+  'ADUBAÇÃO DE COBERTURA': 'Aplicação de nutrientes quando a planta já está em crescimento, geralmente com Nitrogênio.',
+};
+
+const TermTooltip = ({ term, description }: { term: string; description: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <span className="relative inline-block group">
+      <span 
+        className="underline decoration-dotted decoration-[#38bdf8]/60 cursor-help font-bold text-[#38bdf8] hover:text-sky-300 transition-colors"
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {term}
+      </span>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 5, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 p-4 bg-[#0a0f1e] border border-white/20 rounded-2xl shadow-2xl z-[100] pointer-events-none"
+          >
+            <p className="text-[10px] font-bold text-[#38bdf8] uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#38bdf8]" />
+              {term}
+            </p>
+            <p className="text-[12px] text-white/80 leading-relaxed font-medium">
+              {description}
+            </p>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-[#0a0f1e]" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </span>
+  );
+};
+
+function renderWithTooltips(node: any): React.ReactNode {
+  if (typeof node !== 'string') {
+    if (Array.isArray(node)) {
+      return node.map((child, i) => <React.Fragment key={i}>{renderWithTooltips(child)}</React.Fragment>);
+    }
+    if (node && typeof node === 'object' && 'props' in node && node.props.children) {
+      return React.cloneElement(node, {
+        ...node.props,
+        children: renderWithTooltips(node.props.children)
+      });
+    }
+    return node;
+  }
+
+  // Define alphabetical list of terms to avoid partial matches on shorter terms first
+  const terms = Object.keys(AGRO_GLOSSARY).sort((a, b) => b.length - a.length);
+  const regex = new RegExp(`\\b(${terms.join('|')})\\b`, 'gi');
+  
+  const parts = node.split(regex);
+  if (parts.length === 1) return node;
+
+  return parts.map((part, i) => {
+    const upperPart = part.toUpperCase();
+    if (AGRO_GLOSSARY[upperPart]) {
+      return <TermTooltip key={i} term={part} description={AGRO_GLOSSARY[upperPart]} />;
+    }
+    return part;
+  });
+}
+
+// Custom components for ReactMarkdown to use our tooltip renderer
+const markdownComponents = {
+  p: ({ children }: any) => <p className="mb-2 last:mb-0 leading-relaxed">{renderWithTooltips(children)}</p>,
+  li: ({ children }: any) => <li className="mb-1">{renderWithTooltips(children)}</li>,
+  strong: ({ children }: any) => <strong className="text-[#38bdf8] font-bold">{renderWithTooltips(children)}</strong>,
+  em: ({ children }: any) => <em className="italic">{renderWithTooltips(children)}</em>,
 };
 
 export default function Home() {
@@ -1483,7 +1579,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
               >
                 <h3 className="font-bold text-lg mb-2">Dica do AgroAssist</h3>
                 <p className="text-xs leading-relaxed font-medium mb-4">
-                  "O clima em Benguela indica chuva leve para quarta-feira. Ótimo momento para preparar a adubação de cobertura do seu milho."
+                  &quot;O clima em Benguela indica chuva leve para quarta-feira. Ótimo momento para preparar a adubação de cobertura do seu milho.&quot;
                 </p>
                 <button 
                    onClick={() => setViewMode('chat')}
@@ -1677,7 +1773,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                 </div>
                 
                 <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-[#38bdf8] prose-strong:text-blue-300">
-                  <ReactMarkdown>{selectedPlanDetail.report}</ReactMarkdown>
+                  <ReactMarkdown components={markdownComponents}>{selectedPlanDetail.report}</ReactMarkdown>
                 </div>
               </div>
             </div>
@@ -1810,7 +1906,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                   } else if ('text' in part && part.text) {
                     return (
                       <div key={i} className={cn("prose prose-sm max-w-none prose-p:leading-relaxed prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0 pb-1 prose-invert prose-p:text-white/90 prose-strong:text-[#38bdf8] prose-a:text-blue-400", message.role === 'user' ? "prose-p:text-white" : "")}>
-                        <ReactMarkdown>{part.text}</ReactMarkdown>
+                        <ReactMarkdown components={markdownComponents}>{part.text}</ReactMarkdown>
                       </div>
                     );
                   }
