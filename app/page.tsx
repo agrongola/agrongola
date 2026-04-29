@@ -891,7 +891,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
   };
 
   return (
-    <div className="w-full h-screen bg-[#0a2e10] overflow-hidden flex font-sans relative text-white">
+    <div className="w-full h-screen bg-[#0a0f1e] overflow-hidden flex font-sans relative text-white">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -903,17 +903,17 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
       {/* Global Background Elements */}
       <div 
         className="absolute inset-0 opacity-40 pointer-events-none" 
-        style={{ background: 'radial-gradient(circle at 20% 20%, #2d5a27 0%, transparent 50%), radial-gradient(circle at 80% 80%, #1e3a1a 0%, transparent 60%), radial-gradient(circle at 50% 50%, #4a7c44 0%, transparent 70%)' }}>
+        style={{ background: 'radial-gradient(circle at 20% 20%, #1e3a5f 0%, transparent 50%), radial-gradient(circle at 80% 80%, #0a192f 0%, transparent 60%), radial-gradient(circle at 50% 50%, #2d4a7c 0%, transparent 70%)' }}>
       </div>
 
       {/* Left Sidebar - Culturas */}
       <aside className={cn(
-        "fixed inset-y-0 left-0 bg-[#0a2e10]/95 backdrop-blur-2xl border-r border-white/10 flex flex-col z-[70] transition-all duration-300 lg:static lg:w-80 p-6 overflow-y-auto shrink-0",
+        "fixed inset-y-0 left-0 bg-[#0a0f1e]/95 backdrop-blur-2xl border-r border-white/10 flex flex-col z-[70] transition-all duration-300 lg:static lg:w-80 p-6 overflow-y-auto shrink-0",
         isSidebarOpen ? "w-80 translate-x-0 shadow-2xl shadow-black/50" : "w-80 -translate-x-full lg:translate-x-0"
       )}>
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#76c893] rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-[#38bdf8] rounded-xl flex items-center justify-center shadow-lg">
               <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-white rounded-sm rotate-45 flex items-center justify-center overflow-hidden">
                 <div className="w-3 h-3 sm:w-4 sm:h-4 bg-white"></div>
               </div>
@@ -1006,7 +1006,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
               />
               <button 
                 onClick={handleAddCrop}
-                className="w-full bg-[#76c893] text-black text-xs font-bold py-1.5 rounded-lg hover:bg-green-400 transition-colors"
+                className="w-full bg-[#38bdf8] text-black text-xs font-bold py-1.5 rounded-lg hover:bg-sky-400 transition-colors"
               >
                 Adicionar Cultura
               </button>
@@ -1029,7 +1029,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                             setNewCrop({ name: crop.name, plantedAt: crop.plantedAt, location: crop.location });
                             setShowAddCrop(true);
                           }}
-                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-[#76c893] transition-colors border border-transparent"
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/40 hover:text-[#38bdf8] transition-colors border border-transparent"
                           title="Editar"
                         >
                           <Zap className="w-3.5 h-3.5" />
@@ -1068,7 +1068,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                     <div className="flex justify-between items-end mb-2">
                        <div>
                          <p className="text-[9px] uppercase font-bold text-white/40 tracking-wider mb-0.5">ESTÁGIO ATUAL</p>
-                         <p className="text-xs text-[#76c893] font-medium">{stageInfo.stage}</p>
+                         <p className="text-xs text-[#38bdf8] font-medium">{stageInfo.stage}</p>
                        </div>
                        <div className="text-right">
                          <p className="text-[10px] text-white/50">{stageInfo.progress}% concluído</p>
@@ -1166,9 +1166,9 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                  setMessages(prev => [...prev, { role: 'model', parts: [{ text: 'Coleta de dados cancelada.' }] }]);
               }
             }}
-            className="w-full bg-[#76c893]/20 border border-[#76c893]/50 hover:bg-[#76c893]/30 text-white text-xs font-semibold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
+            className="w-full bg-[#38bdf8]/20 border border-[#38bdf8]/50 hover:bg-[#38bdf8]/30 text-white text-xs font-semibold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2"
           >
-            <Calendar className="w-4 h-4 text-[#76c893]" />
+            <Calendar className="w-4 h-4 text-[#38bdf8]" />
             <span>{wizardState.active ? "Cancelar Coleta" : "Iniciar Relatório Guiado"}</span>
           </button>
           
@@ -1193,12 +1193,12 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           >
             <Map className="w-5 h-5" />
           </button>
-          <div className="w-10 h-10 bg-[#76c893] rounded-xl flex items-center justify-center shadow-lg hidden sm:flex">
+          <div className="w-10 h-10 bg-[#38bdf8] rounded-xl flex items-center justify-center shadow-lg hidden sm:flex">
             <Leaf className="w-6 h-6 text-black" />
           </div>
           <div>
             <h1 className="text-sm font-bold text-white font-serif tracking-tight">AGRONGOLA <span className="text-[10px] bg-white/10 px-1.5 py-0.5 rounded ml-1 font-sans">3.0</span></h1>
-            <p className="text-[10px] text-green-400 uppercase font-bold tracking-wider">Assistente Agronómico Digital</p>
+            <p className="text-[10px] text-blue-400 uppercase font-bold tracking-wider">Assistente Agronómico Digital</p>
           </div>
         </div>
         
@@ -1226,27 +1226,27 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           <div className="flex border border-white/20 rounded-xl overflow-hidden bg-white/5 p-1">
             <button 
               onClick={() => setViewMode('chat')}
-              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'chat' ? 'bg-[#76c893] text-black shadow-md' : 'text-white/70 hover:text-white')}
+              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'chat' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
             >
               Chat
             </button>
             <button 
               onClick={() => setViewMode('planning')}
-              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'planning' ? 'bg-[#76c893] text-black shadow-md' : 'text-white/70 hover:text-white')}
+              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'planning' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
             >
               <Calendar className="w-3.5 h-3.5" />
               Safra
             </button>
             <button 
               onClick={() => setViewMode('map')}
-              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'map' ? 'bg-[#76c893] text-black shadow-md' : 'text-white/70 hover:text-white')}
+              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'map' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
             >
               <Map className="w-3.5 h-3.5" />
               Mapa
             </button>
             <button 
               onClick={() => setViewMode('globe')}
-              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'globe' ? 'bg-[#76c893] text-black shadow-md' : 'text-white/70 hover:text-white')}
+              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'globe' ? 'bg-[#38bdf8] text-black shadow-md' : 'text-white/70 hover:text-white')}
             >
               <GlobeIcon className="w-3.5 h-3.5" />
               Globo
@@ -1263,7 +1263,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
 
       {viewMode === 'globe' && (
         <div className="flex-1 w-full bg-black/40 overflow-hidden relative rounded-b-3xl sm:rounded-b-none flex items-center justify-center">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#1e3a1a_0%,transparent_70%)] opacity-30 pointer-events-none"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#0a192f_0%,transparent_70%)] opacity-30 pointer-events-none"></div>
             <div className="relative w-full aspect-square max-w-[600px] flex items-center justify-center">
                 <Globe 
                     config={{
@@ -1275,9 +1275,9 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                         diffuse: 1.2,
                         mapSamples: 16000,
                         mapBrightness: 6,
-                        baseColor: [0.1, 0.3, 0.1],
-                        markerColor: [118/255, 200/255, 147/255],
-                        glowColor: [0.1, 0.5, 0.2],
+                        baseColor: [0.05, 0.1, 0.2],
+                        markerColor: [56/255, 189/255, 248/255],
+                        glowColor: [0.1, 0.2, 0.5],
                         markers: globeMarkers,
                         devicePixelRatio: 2,
                     }}
@@ -1285,11 +1285,11 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                 />
                 
                 <div className="absolute top-10 left-10 z-20 pointer-events-none">
-                    <h2 className="text-3xl font-serif font-bold text-[#76c893]">BOLE-GLOBE MONITOR</h2>
+                    <h2 className="text-3xl font-serif font-bold text-[#38bdf8]">BOLE-GLOBE MONITOR</h2>
                     <p className="text-white/50 text-sm mt-2 font-medium">Interação Satelital Agro-Visual</p>
                     <div className="flex items-center gap-3 mt-6">
                         <div className="flex items-center gap-1.5 text-xs bg-black/40 border border-white/10 px-3 py-1.5 rounded-full">
-                            <div className="w-1.5 h-1.5 bg-[#76c893] rounded-full animate-pulse"></div>
+                            <div className="w-1.5 h-1.5 bg-[#38bdf8] rounded-full animate-pulse"></div>
                             <span>{crops.length + 3} Pontos Ativos</span>
                         </div>
                     </div>
@@ -1324,7 +1324,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                     }
                   ]);
                 }}
-                className="bg-[#76c893] hover:bg-green-400 text-black px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg"
+                className="bg-[#38bdf8] hover:bg-sky-400 text-black px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg"
               >
                 <Plus className="w-4 h-4" />
                 Novo Plano
@@ -1346,7 +1346,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                 </div>
                 <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
                   <div>
-                    <h3 className="text-2xl font-bold text-[#76c893]">{selectedPlanDetail.crop}</h3>
+                    <h3 className="text-2xl font-bold text-[#38bdf8]">{selectedPlanDetail.crop}</h3>
                     <p className="text-xs text-white/50">{selectedPlanDetail.timestamp}</p>
                   </div>
                   <div className="text-right">
@@ -1355,7 +1355,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                   </div>
                 </div>
                 
-                <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-[#76c893] prose-strong:text-green-300">
+                <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-headings:text-[#38bdf8] prose-strong:text-blue-300">
                   <ReactMarkdown>{selectedPlanDetail.report}</ReactMarkdown>
                 </div>
               </div>
@@ -1369,10 +1369,10 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                     onClick={() => setSelectedPlanDetail(plan)}
                     className="p-5 bg-white/5 border border-white/10 rounded-2xl text-left hover:bg-white/10 transition-all group relative overflow-hidden"
                   >
-                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#76c893]/5 rounded-full blur-2xl group-hover:bg-[#76c893]/10 transition-all"></div>
+                    <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#38bdf8]/5 rounded-full blur-2xl group-hover:bg-[#38bdf8]/10 transition-all"></div>
                     <div className="flex justify-between items-start mb-3">
-                      <div className="p-2 bg-[#76c893]/10 rounded-lg">
-                        <Calendar className="w-5 h-5 text-[#76c893]" />
+                      <div className="p-2 bg-[#38bdf8]/10 rounded-lg">
+                        <Calendar className="w-5 h-5 text-[#38bdf8]" />
                       </div>
                       <div className="flex items-center gap-1">
                         <p className="text-[10px] text-white/40 font-bold mr-2">{plan.timestamp}</p>
@@ -1387,9 +1387,9 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                         </button>
                       </div>
                     </div>
-                    <h3 className="font-bold text-lg mb-1 group-hover:text-[#76c893] transition-colors">{plan.crop}</h3>
+                    <h3 className="font-bold text-lg mb-1 group-hover:text-[#38bdf8] transition-colors">{plan.crop}</h3>
                     <p className="text-xs text-white/60 mb-4 line-clamp-2">{plan.data.location} • {plan.data.area}</p>
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-[#76c893] uppercase tracking-widest">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-[#38bdf8] uppercase tracking-widest">
                       Ver Plano Completo
                       <Send className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
                     </div>
@@ -1471,7 +1471,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                 className={cn(
                   "px-4 py-3 text-[15px] shadow-xl relative",
                   message.role === 'user' 
-                    ? "bg-[#2d5a27]/80 backdrop-blur-sm rounded-2xl rounded-tr-none border border-white/10 text-white" 
+                    ? "bg-[#1e3a5f]/80 backdrop-blur-sm rounded-2xl rounded-tr-none border border-white/10 text-white" 
                     : "bg-white/10 backdrop-blur-xl rounded-3xl rounded-tl-none border border-white/20 text-white"
                 )}
               >
@@ -1491,7 +1491,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                     );
                   } else if ('text' in part && part.text) {
                     return (
-                      <div key={i} className={cn("prose prose-sm max-w-none prose-p:leading-relaxed prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0 pb-1 prose-invert prose-p:text-white/90 prose-strong:text-[#76c893] prose-a:text-green-400", message.role === 'user' ? "prose-p:text-white" : "")}>
+                      <div key={i} className={cn("prose prose-sm max-w-none prose-p:leading-relaxed prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-li:my-0 pb-1 prose-invert prose-p:text-white/90 prose-strong:text-[#38bdf8] prose-a:text-blue-400", message.role === 'user' ? "prose-p:text-white" : "")}>
                         <ReactMarkdown>{part.text}</ReactMarkdown>
                       </div>
                     );
@@ -1508,7 +1508,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                   <button
                     key={sIdx}
                     onClick={() => handleSuggestionClick(suggestion.text)}
-                    className="flex items-center gap-2 bg-white/5 hover:bg-[#76c893]/20 hover:border-[#76c893]/40 border border-white/10 rounded-full px-4 py-2 text-[13px] text-white/80 hover:text-white transition-all text-left shadow-sm"
+                    className="flex items-center gap-2 bg-white/5 hover:bg-[#38bdf8]/20 hover:border-[#38bdf8]/40 border border-white/10 rounded-full px-4 py-2 text-[13px] text-white/80 hover:text-white transition-all text-left shadow-sm"
                   >
                     <span>{suggestion.icon}</span>
                     <span className="font-medium">{suggestion.text}</span>
@@ -1521,9 +1521,9 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
         {isLoading && messages[messages.length - 1].role === 'user' && (
            <div className="flex max-w-[85%] sm:max-w-[80%] mr-auto items-start">
              <div className="bg-white/10 backdrop-blur-xl px-5 py-4 rounded-3xl rounded-tl-none border border-white/20 shadow-xl flex items-center space-x-2">
-               <div className="w-2 h-2 bg-[#76c893] rounded-full animate-pulse"></div>
-               <div className="w-2 h-2 bg-[#76c893] rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-               <div className="w-2 h-2 bg-[#76c893] rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+               <div className="w-2 h-2 bg-[#38bdf8] rounded-full animate-pulse"></div>
+               <div className="w-2 h-2 bg-[#38bdf8] rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+               <div className="w-2 h-2 bg-[#38bdf8] rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
              </div>
            </div>
         )}
@@ -1575,7 +1575,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                   className={cn(
                     "text-[9px] px-2.5 py-1.5 rounded-lg border transition-all font-medium uppercase tracking-[0.05em]",
                     selectedSymptoms.includes(sym) 
-                      ? "bg-[#76c893] border-[#76c893] text-black shadow-[0_0_10px_rgba(118,200,147,0.3)]" 
+                      ? "bg-[#38bdf8] border-[#38bdf8] text-black shadow-[0_0_10px_rgba(56,189,248,0.3)]" 
                       : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
                   )}
                 >
