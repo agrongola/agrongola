@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Send, Image as ImageIcon, X, Paperclip, Tractor, Leaf, Plus, Calendar, MapPin, Sprout, Bell, BellRing, Droplet, Zap, Mic, Square } from 'lucide-react';
+import { Send, Image as ImageIcon, X, Paperclip, Tractor, Leaf, Plus, Calendar, MapPin, Sprout, Bell, BellRing, Droplet, Zap, Mic, Square, Globe as GlobeIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { searchPestDisease } from '@/lib/agri-library';
 import AgroMapWrapper from '@/components/AgroMapWrapper';
 import { Map } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { Globe } from '@/components/ui/globe';
+import Image from 'next/image';
 
 // Define the system prompt
 const SYSTEM_INSTRUCTION = `Você é o AgroAssist AI (evolução do AgriSmart), denominado AGRONGOLA, um agrônomo virtual especialista, altamente inteligente e empático, criado para auxiliar agricultores diretamente pelo WhatsApp.
@@ -212,7 +214,15 @@ type CropPlan = {
 };
 
 // Helper functions outside component to satisfy purity rules
-const generateId = () => Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 export default function Home() {
   const [isHydrated, setIsHydrated] = useState(false);
@@ -288,12 +298,60 @@ export default function Home() {
     hydrate();
   }, []);
 
+  const deleteMessage = (index: number) => {
+    const messageToDelete = messages[index];
+    const newMessages = messages.filter((_, i) => i !== index);
+    setMessages(newMessages);
+    
+    // Attempt to delete from Supabase if we can identify it (usually by content/timestamp or just clearing and re-inserting)
+    // For simplicity with this current schema, we'll just clear and re-insert or use a more specific query if we had IDs
+    // Since our messages don't have IDs in the state yet, we'll just update the local state.
+    // In a production app, messages would have UUIDs.
+  };
+
   // Sync to Supabase
   useEffect(() => {
     if (!isHydrated) return;
     localStorage.setItem('agrongola_crops', JSON.stringify(crops));
-    // Implementation for real-time sync could go here or on specific actions
   }, [crops, isHydrated]);
+
+  const globeMarkers = useMemo(() => {
+    // Sync crops to globe markers
+    const markers = crops.map(c => {
+      // Deterministic "randomness" based on ID to satisfy purity rules
+      const seed = c.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const latOffset = (seed % 100) / 50; // -1 to 1
+      const lngOffset = ((seed * 1.5) % 100) / 50; // -1 to 1
+      
+      return {
+        location: [
+          // Default to Angola region if no coords
+          c.id.length % 2 === 0 ? -12.77 + latOffset : -9.54 + latOffset,
+          c.id.length % 2 === 0 ? 15.73 + lngOffset : 13.40 + lngOffset
+        ] as [number, number],
+        size: 0.1,
+      };
+    });
+    
+    // Add some default markers for Angola's main hubs
+    markers.push({ location: [-8.8383, 13.2344], size: 0.15 }); // Luanda
+    markers.push({ location: [-12.5763, 13.4055], size: 0.1 });    // Benguela
+    markers.push({ location: [-12.7761, 15.7392], size: 0.1 });    // Huambo
+    
+    return markers;
+  }, [crops]);
+
+  const updateCropAlerts = (cropId: string, alerts: Crop['soilAlerts']) => {
+    const newCrops = crops.map(c => c.id === cropId ? { ...c, soilAlerts: alerts } : c);
+    setCrops(newCrops);
+    
+    // Sync to Supabase
+    supabase.from('crops').update({
+      moisture_alert: alerts.moisture,
+      moisture_threshold: alerts.moistureThreshold,
+      nutrients_alert: alerts.nutrients
+    }).eq('id', cropId).then();
+  };
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -433,7 +491,7 @@ export default function Home() {
     fetchWeather();
   }, []);
 
-  const [viewMode, setViewMode] = useState<'chat' | 'map' | 'planning'>('chat');
+  const [viewMode, setViewMode] = useState<'chat' | 'map' | 'planning' | 'globe'>('chat');
   const [farmLocation, setFarmLocation] = useState<{lat: number, lng: number} | null>(null);
   const [selectedPlanDetail, setSelectedPlanDetail] = useState<CropPlan | null>(null);
   
@@ -588,7 +646,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
            chatHistory.push({ role: 'user', parts: [{ text: finalPrompt }] });
            
            const response = await ai.models.generateContent({
-             model: 'gemini-2.0-flash',
+             model: 'gemini-3-flash-preview',
              contents: [
                { role: 'user', parts: [{ text: SYSTEM_INSTRUCTION }] },
                { role: 'model', parts: [{ text: 'Entendido. Estou pronto para ajudar.' }] },
@@ -691,7 +749,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
 
       const generateResponse = async (contents: any[]) => {
         const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-3-flash-preview',
           contents: contents,
           config: {
             systemInstruction: dynamicSystemInstruction,
@@ -1044,8 +1102,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input type="checkbox" className="sr-only peer" checked={crop.soilAlerts.moisture} onChange={(e) => {
-                            const newCrops = crops.map(c => c.id === crop.id ? { ...c, soilAlerts: { ...c.soilAlerts, moisture: e.target.checked } } : c);
-                            setCrops(newCrops);
+                            updateCropAlerts(crop.id, { ...crop.soilAlerts, moisture: e.target.checked });
                           }} />
                           <div className="w-8 h-4 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-500"></div>
                         </label>
@@ -1060,8 +1117,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                                value={crop.soilAlerts.moistureThreshold}
                                onChange={(e) => {
                                  const val = parseInt(e.target.value) || 0;
-                                 const newCrops = crops.map(c => c.id === crop.id ? { ...c, soilAlerts: { ...c.soilAlerts, moistureThreshold: val } } : c);
-                                 setCrops(newCrops);
+                                 updateCropAlerts(crop.id, { ...crop.soilAlerts, moistureThreshold: val });
                                }}
                                className="w-12 bg-white/10 border border-white/20 rounded-md px-1 py-0.5 text-xs text-center focus:outline-none"
                              />
@@ -1077,8 +1133,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input type="checkbox" className="sr-only peer" checked={crop.soilAlerts.nutrients} onChange={(e) => {
-                            const newCrops = crops.map(c => c.id === crop.id ? { ...c, soilAlerts: { ...c.soilAlerts, nutrients: e.target.checked } } : c);
-                            setCrops(newCrops);
+                            updateCropAlerts(crop.id, { ...crop.soilAlerts, nutrients: e.target.checked });
                           }} />
                           <div className="w-8 h-4 bg-white/20 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-purple-500"></div>
                         </label>
@@ -1189,6 +1244,13 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
               <Map className="w-3.5 h-3.5" />
               Mapa
             </button>
+            <button 
+              onClick={() => setViewMode('globe')}
+              className={cn("px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-2", viewMode === 'globe' ? 'bg-[#76c893] text-black shadow-md' : 'text-white/70 hover:text-white')}
+            >
+              <GlobeIcon className="w-3.5 h-3.5" />
+              Globo
+            </button>
           </div>
         </div>
       </header>
@@ -1196,6 +1258,49 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
       {viewMode === 'map' && (
         <div className="flex-1 w-full bg-[#111] overflow-hidden relative rounded-b-3xl sm:rounded-b-none">
           <AgroMapWrapper farmLocation={farmLocation} onSetFarmLocation={setFarmLocation} />
+        </div>
+      )}
+
+      {viewMode === 'globe' && (
+        <div className="flex-1 w-full bg-black/40 overflow-hidden relative rounded-b-3xl sm:rounded-b-none flex items-center justify-center">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#1e3a1a_0%,transparent_70%)] opacity-30 pointer-events-none"></div>
+            <div className="relative w-full aspect-square max-w-[600px] flex items-center justify-center">
+                <Globe 
+                    config={{
+                        width: 1200,
+                        height: 1200,
+                        phi: 0,
+                        theta: 0.3,
+                        dark: 1,
+                        diffuse: 1.2,
+                        mapSamples: 16000,
+                        mapBrightness: 6,
+                        baseColor: [0.1, 0.3, 0.1],
+                        markerColor: [118/255, 200/255, 147/255],
+                        glowColor: [0.1, 0.5, 0.2],
+                        markers: globeMarkers,
+                        devicePixelRatio: 2,
+                    }}
+                    className="z-10" 
+                />
+                
+                <div className="absolute top-10 left-10 z-20 pointer-events-none">
+                    <h2 className="text-3xl font-serif font-bold text-[#76c893]">BOLE-GLOBE MONITOR</h2>
+                    <p className="text-white/50 text-sm mt-2 font-medium">Interação Satelital Agro-Visual</p>
+                    <div className="flex items-center gap-3 mt-6">
+                        <div className="flex items-center gap-1.5 text-xs bg-black/40 border border-white/10 px-3 py-1.5 rounded-full">
+                            <div className="w-1.5 h-1.5 bg-[#76c893] rounded-full animate-pulse"></div>
+                            <span>{crops.length + 3} Pontos Ativos</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="absolute bottom-10 right-10 z-20 text-right pointer-events-none max-w-[200px]">
+                    <p className="text-[10px] uppercase font-bold text-white/30 tracking-widest mb-1.5">Região Focada</p>
+                    <p className="text-lg font-bold">Angola (Subsaariana)</p>
+                    <p className="text-xs text-white/50 mt-1">Dados de topografia e umidade processados</p>
+                </div>
+            </div>
         </div>
       )}
 
@@ -1336,13 +1441,32 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
         </div>
 
         {messages.map((message, index) => (
-          <div key={index} className="flex flex-col">
+          <div key={index} className="flex flex-col group/msg">
             <div 
               className={cn(
                 "flex flex-col max-w-[85%] sm:max-w-[80%]",
                 message.role === 'user' ? "ml-auto items-end" : "mr-auto items-start"
               )}
             >
+              <div className="flex items-center gap-2 mb-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                {message.role === 'user' && (
+                  <button 
+                    onClick={() => deleteMessage(index)}
+                    className="p-1 text-white/20 hover:text-red-400"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+                <span className="text-[9px] uppercase font-bold text-white/20 tracking-widest">{message.role === 'user' ? 'Você' : 'Agrongola'}</span>
+                {message.role === 'model' && (
+                  <button 
+                    onClick={() => deleteMessage(index)}
+                    className="p-1 text-white/20 hover:text-red-400"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
               <div 
                 className={cn(
                   "px-4 py-3 text-[15px] shadow-xl relative",
@@ -1355,11 +1479,13 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
                   if ('inlineData' in part) {
                     return (
                       <div key={i} className="mb-3 max-w-sm rounded overflow-hidden shadow-sm">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img 
+                        <Image 
                           src={`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`} 
                           alt="Imagem enviada" 
-                          className="w-full object-cover rounded-lg border border-white/10"
+                          width={400}
+                          height={300}
+                          className="w-full h-auto object-cover rounded-lg border border-white/10"
+                          referrerPolicy="no-referrer"
                         />
                       </div>
                     );
@@ -1418,17 +1544,17 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           </div>
           
           <div className="grid grid-cols-4 gap-1.5 mb-3">
-            {selectedImages.map((img, i) => (
-              <div key={i} className="relative aspect-square rounded-lg overflow-hidden group">
-                <img src={img} alt={`Preview ${i}`} className="w-full h-full object-cover border border-white/10" />
-                <button 
-                  onClick={() => removeImage(i)}
-                  className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X className="w-3 h-3 text-white" />
-                </button>
-              </div>
-            ))}
+              {selectedImages.map((img, i) => (
+                <div key={i} className="relative aspect-square rounded-lg overflow-hidden group">
+                  <Image src={img} alt={`Preview ${i}`} fill className="object-cover border border-white/10" referrerPolicy="no-referrer" />
+                  <button 
+                    onClick={() => removeImage(i)}
+                    className="absolute top-0.5 right-0.5 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  >
+                    <X className="w-3 h-3 text-white" />
+                  </button>
+                </div>
+              ))}
             {selectedImages.length < 4 && (
               <button 
                 onClick={() => fileInputRef.current?.click()}
@@ -1654,7 +1780,7 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
       {/* Modal Nova/Editar Cultura (Centralizado) */}
       {showAddCrop && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="bg-[#0a2e10] border border-white/10 w-full max-w-md rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+          <div className="bg-[#0a2e10] border border-white/10 w-full max-w-md rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-y-auto max-h-[90vh]">
             <div className="absolute -right-20 -top-20 w-64 h-64 bg-[#76c893]/10 rounded-full blur-3xl pointer-events-none"></div>
             
             <button 
@@ -1718,10 +1844,10 @@ IMPORTANTE: Inclua uma seção detalhada de **ESTRATÉGIA DE ROTAÇÃO DE CULTUR
           </div>
         </div>
       )}
-      {/* Footer corporativo fixo no fundo */}
-      <footer className="fixed bottom-0 left-0 w-full py-2 bg-[#0a0a0a]/80 backdrop-blur-sm z-[90] text-center border-t border-white/5">
-        <p className="text-[9px] text-white/30 uppercase tracking-widest font-medium px-4">
-          Todos direitos reservados para empresa Pro Engenharia Angola. Por: Bernardino Felizardo
+      {/* Footer corporativo fixo no fundo - Agora adaptativo */}
+      <footer className="fixed bottom-0 left-0 w-full py-1.5 bg-[#0a0a0a]/90 backdrop-blur-md z-[90] text-center border-t border-white/5 lg:bg-transparent lg:border-none lg:text-left lg:px-8 lg:bottom-4 lg:w-auto">
+        <p className="text-[8px] sm:text-[9px] text-white/20 uppercase tracking-widest font-medium px-4">
+          Todos direitos reservados para empresa Pro Engenharia Angola. <span className="hidden sm:inline">Por: Bernardino Felizardo</span>
         </p>
       </footer>
     </div>

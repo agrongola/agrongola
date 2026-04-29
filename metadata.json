@@ -1,6 +1,6 @@
 {
-  "name": "Remix: Agrongola 3.0 (Assistente Agrícola)",
-  "description": "Virtual agronomist assistant for farmers, specializing in diagnosis and practical advice.",
+  "name": "AGRONGOLA 3.0 - Monitor Global e Assistente Agronómico",
+  "description": "Assistente agronómico virtual com monitoramento via satélite (Bole-Globe), diagnósticos por imagem e planejamento de safra inteligente.",
   "requestFramePermissions": [
     "geolocation"
   ],

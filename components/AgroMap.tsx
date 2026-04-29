@@ -94,6 +94,7 @@ export default function AgroMap({ farmLocation, onSetFarmLocation }: AgroMapProp
         );
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // O alvo do scan será a farmLocation se existir, senão a userLocation
